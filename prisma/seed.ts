@@ -514,6 +514,9 @@ async function main() {
       role: "admin",
       password: "$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsv97NuEy", // Admin@123
       phone: "+919876543210",
+      emailVerified: new Date(),
+      image: "https://ui-avatars.com/api/?name=Admin+User&background=1a1a1a&color=fff&size=200",
+      avatar: "https://ui-avatars.com/api/?name=Admin+User&background=1a1a1a&color=fff&size=200",
     }
   })
 
@@ -524,6 +527,9 @@ async function main() {
       role: "user",
       password: "$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsv97NuEy", // User@123
       phone: "+919876543211",
+      emailVerified: new Date(),
+      image: "https://ui-avatars.com/api/?name=Demo+User&background=4285F4&color=fff&size=200",
+      avatar: "https://ui-avatars.com/api/?name=Demo+User&background=4285F4&color=fff&size=200",
     }
   })
 

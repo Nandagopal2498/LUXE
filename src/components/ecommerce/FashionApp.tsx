@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { signIn, signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, ShoppingBag, Heart, User, Menu, X, Star, ChevronDown,
@@ -244,7 +245,8 @@ function Header({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMod
     store.setSearchOpen(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut({ redirect: false });
     store.setUser(null);
     toast({ title: 'Logged out successfully' });
   };
@@ -596,6 +598,17 @@ function SearchModal() {
 
 // ==================== AUTH MODAL ====================
 
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+  );
+}
+
 function AuthModal() {
   const store = useStore();
   const { toast } = useToast();
@@ -603,30 +616,89 @@ function AuthModal() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError('');
+    try {
+      // Check if real Google OAuth is configured
+      const hasRealGoogleOAuth = process.env.NODE_ENV === 'production' ||
+        (typeof window !== 'undefined' && window.__NEXT_DATA__?.runtimeConfig?.googleOAuth);
+
+      if (hasRealGoogleOAuth) {
+        // Use real NextAuth Google sign-in with redirect
+        signIn('google', { callbackUrl: '/' });
+      } else {
+        // Demo mode - use our simulated Google sign-in endpoint
+        const res = await fetch('/api/auth/google-demo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        if (res.ok) {
+          const user = await res.json();
+          store.setUser({ id: user.id, email: user.email, name: user.name, avatar: user.avatar || null, phone: null, role: user.role || 'user' });
+          store.setAuthModalOpen(false);
+          toast({ title: `Welcome, ${user.name}!`, description: 'Signed in with Google successfully' });
+        } else {
+          setError('Google sign-in failed. Please try again.');
+        }
+      }
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
-      // Demo auth - check against seeded users
       if (store.authMode === 'login') {
-        if (email === 'admin@luxe.com' || email === 'user@luxe.com') {
-          const role = email === 'admin@luxe.com' ? 'admin' : 'user';
-          const userName = role === 'admin' ? 'Admin User' : 'John Doe';
-          store.setUser({ id: email === 'admin@luxe.com' ? 'admin-1' : 'user-1', email, name: userName, avatar: null, phone: null, role: role as 'admin' | 'user' });
+        // Use NextAuth credentials provider
+        const result = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        });
+        if (result?.error) {
+          setError('Invalid email or password');
+        } else if (result?.ok) {
           store.setAuthModalOpen(false);
-          toast({ title: `Welcome back, ${userName}!` });
-        } else {
-          // Auto-create user for demo
-          store.setUser({ id: `user-${Date.now()}`, email, name: email.split('@')[0], avatar: null, phone: null, role: 'user' });
-          store.setAuthModalOpen(false);
-          toast({ title: 'Welcome!' });
+          toast({ title: 'Welcome back!' });
+          // AuthSync will update the store from the session
         }
       } else {
-        store.setUser({ id: `user-${Date.now()}`, email, name, avatar: null, phone: null, role: 'user' });
-        store.setAuthModalOpen(false);
-        toast({ title: 'Account created successfully!' });
+        // Sign up - create user via API, then sign in
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setError(data.error || 'Failed to create account');
+        } else {
+          // Auto sign-in after registration
+          const result = await signIn('credentials', {
+            email,
+            password,
+            redirect: false,
+          });
+          if (result?.ok) {
+            store.setAuthModalOpen(false);
+            toast({ title: 'Account created successfully!', description: 'Welcome to LUXE!' });
+          }
+        }
       }
+    } catch (err) {
+      console.error('Auth error:', err);
+      setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -640,7 +712,51 @@ function AuthModal() {
             {store.authMode === 'login' ? 'Welcome Back' : 'Create Account'}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+
+        {/* Google Sign-In Button - Prominent at top */}
+        <div className="mt-4">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-12 text-base font-medium border-2 hover:border-foreground/20 hover:bg-muted/50 transition-all duration-200"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading}
+          >
+            {googleLoading ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <GoogleIcon className="mr-2 h-5 w-5" />
+            )}
+            Continue with Google
+          </Button>
+          <p className="mt-1.5 text-center text-[11px] text-muted-foreground/60">
+            {process.env.NODE_ENV === 'production'
+              ? 'Sign in with your Google account'
+              : 'Demo mode — simulates Google OAuth flow'}
+          </p>
+        </div>
+
+        {/* Divider */}
+        <div className="relative my-2">
+          <Separator />
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">
+            or continue with email
+          </span>
+        </div>
+
+        {/* Error message */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-600 dark:text-red-400"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </motion.div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           {store.authMode === 'signup' && (
             <div className="space-y-2">
               <Label>Full Name</Label>
@@ -659,23 +775,49 @@ function AuthModal() {
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {store.authMode === 'login' ? 'Sign In' : 'Create Account'}
           </Button>
-          <div className="relative my-4">
+
+          {/* Demo login buttons */}
+          <div className="relative my-2">
             <Separator />
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-2 text-xs text-muted-foreground">
-              or
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">
+              demo accounts
             </span>
           </div>
-          <Button type="button" variant="outline" className="w-full" onClick={() => {
-            setEmail('user@luxe.com');
-            setPassword('User@123');
-          }}>
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          <Button type="button" variant="outline" className="w-full" onClick={async () => {
+            setLoading(true);
+            setError('');
+            const result = await signIn('credentials', {
+              email: 'user@luxe.com',
+              password: 'User@123',
+              redirect: false,
+            });
+            if (result?.ok) {
+              store.setAuthModalOpen(false);
+              toast({ title: 'Welcome back, Demo User!' });
+            } else {
+              setError('Demo login failed');
+            }
+            setLoading(false);
+          }} disabled={loading}>
+            <GoogleIcon className="mr-2 h-4 w-4" />
             Demo User Login
           </Button>
-          <Button type="button" variant="outline" className="w-full" onClick={() => {
-            setEmail('admin@luxe.com');
-            setPassword('Admin@123');
-          }}>
+          <Button type="button" variant="outline" className="w-full" onClick={async () => {
+            setLoading(true);
+            setError('');
+            const result = await signIn('credentials', {
+              email: 'admin@luxe.com',
+              password: 'Admin@123',
+              redirect: false,
+            });
+            if (result?.ok) {
+              store.setAuthModalOpen(false);
+              toast({ title: 'Welcome back, Admin!' });
+            } else {
+              setError('Demo admin login failed');
+            }
+            setLoading(false);
+          }} disabled={loading}>
             <Shield className="mr-2 h-4 w-4" />
             Demo Admin Login
           </Button>
@@ -684,7 +826,7 @@ function AuthModal() {
             <button
               type="button"
               className="font-medium text-foreground underline underline-offset-4"
-              onClick={() => store.setAuthMode(store.authMode === 'login' ? 'signup' : 'login')}
+              onClick={() => { store.setAuthMode(store.authMode === 'login' ? 'signup' : 'login'); setError(''); }}
             >
               {store.authMode === 'login' ? 'Sign up' : 'Sign in'}
             </button>
