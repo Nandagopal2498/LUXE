@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { signIn, signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, ShoppingBag, Heart, User, Menu, X, Star, ChevronDown,
@@ -246,7 +245,7 @@ function Header({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMod
   };
 
   const handleLogout = async () => {
-    await signOut({ redirect: false });
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
     store.setUser(null);
     toast({ title: 'Logged out successfully' });
   };
@@ -623,28 +622,21 @@ function AuthModal() {
     setGoogleLoading(true);
     setError('');
     try {
-      // Check if real Google OAuth is configured
-      const hasRealGoogleOAuth = process.env.NODE_ENV === 'production' ||
-        (typeof window !== 'undefined' && window.__NEXT_DATA__?.runtimeConfig?.googleOAuth);
-
-      if (hasRealGoogleOAuth) {
-        // Use real NextAuth Google sign-in with redirect
-        signIn('google', { callbackUrl: '/' });
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        store.setUser({ id: data.user.id, email: data.user.email, name: data.user.name, avatar: data.user.avatar || null, phone: null, role: data.user.role || 'user' });
+        store.setAuthModalOpen(false);
+        toast({ title: `Welcome, ${data.user.name}!`, description: 'Signed in with Google successfully' });
+      } else if (data.url) {
+        // Supabase OAuth redirect
+        window.location.href = data.url;
       } else {
-        // Demo mode - use our simulated Google sign-in endpoint
-        const res = await fetch('/api/auth/google-demo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        });
-        if (res.ok) {
-          const user = await res.json();
-          store.setUser({ id: user.id, email: user.email, name: user.name, avatar: user.avatar || null, phone: null, role: user.role || 'user' });
-          store.setAuthModalOpen(false);
-          toast({ title: `Welcome, ${user.name}!`, description: 'Signed in with Google successfully' });
-        } else {
-          setError('Google sign-in failed. Please try again.');
-        }
+        setError(data.error || 'Google sign-in failed. Please try again.');
       }
     } catch (err) {
       console.error('Google sign-in error:', err);
@@ -654,46 +646,46 @@ function AuthModal() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCredentialsAuth = async (loginEmail: string, loginPassword: string) => {
     setLoading(true);
     setError('');
     try {
       if (store.authMode === 'login') {
-        // Use NextAuth credentials provider
-        const result = await signIn('credentials', {
-          email,
-          password,
-          redirect: false,
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: loginEmail, password: loginPassword }),
         });
-        if (result?.error) {
-          setError('Invalid email or password');
-        } else if (result?.ok) {
+        const data = await res.json();
+        if (res.ok && data.user) {
+          store.setUser({ id: data.user.id, email: data.user.email, name: data.user.name, avatar: data.user.avatar || null, phone: null, role: data.user.role || 'user' });
           store.setAuthModalOpen(false);
           toast({ title: 'Welcome back!' });
-          // AuthSync will update the store from the session
+        } else {
+          setError(data.error || 'Invalid email or password');
         }
       } else {
-        // Sign up - create user via API, then sign in
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({ name, email: loginEmail, password: loginPassword }),
         });
         const data = await res.json();
-        if (!res.ok) {
-          setError(data.error || 'Failed to create account');
-        } else {
+        if (res.ok && data.user) {
           // Auto sign-in after registration
-          const result = await signIn('credentials', {
-            email,
-            password,
-            redirect: false,
+          const loginRes = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: loginEmail, password: loginPassword }),
           });
-          if (result?.ok) {
+          const loginData = await loginRes.json();
+          if (loginRes.ok && loginData.user) {
+            store.setUser({ id: loginData.user.id, email: loginData.user.email, name: loginData.user.name, avatar: loginData.user.avatar || null, phone: null, role: loginData.user.role || 'user' });
             store.setAuthModalOpen(false);
             toast({ title: 'Account created successfully!', description: 'Welcome to LUXE!' });
           }
+        } else {
+          setError(data.error || 'Failed to create account');
         }
       }
     } catch (err) {
@@ -702,6 +694,11 @@ function AuthModal() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleCredentialsAuth(email, password);
   };
 
   return (
@@ -730,9 +727,9 @@ function AuthModal() {
             Continue with Google
           </Button>
           <p className="mt-1.5 text-center text-[11px] text-muted-foreground/60">
-            {process.env.NODE_ENV === 'production'
-              ? 'Sign in with your Google account'
-              : 'Demo mode — simulates Google OAuth flow'}
+            {process.env.NEXT_PUBLIC_SUPABASE_URL
+              ? 'Sign in with your Google account via Supabase'
+              : 'Demo mode — add Supabase credentials for real Google OAuth'}
           </p>
         </div>
 
@@ -783,41 +780,11 @@ function AuthModal() {
               demo accounts
             </span>
           </div>
-          <Button type="button" variant="outline" className="w-full" onClick={async () => {
-            setLoading(true);
-            setError('');
-            const result = await signIn('credentials', {
-              email: 'user@luxe.com',
-              password: 'User@123',
-              redirect: false,
-            });
-            if (result?.ok) {
-              store.setAuthModalOpen(false);
-              toast({ title: 'Welcome back, Demo User!' });
-            } else {
-              setError('Demo login failed');
-            }
-            setLoading(false);
-          }} disabled={loading}>
-            <GoogleIcon className="mr-2 h-4 w-4" />
+          <Button type="button" variant="outline" className="w-full" onClick={() => handleCredentialsAuth('user@luxe.com', 'User@123')} disabled={loading}>
+            <User className="mr-2 h-4 w-4" />
             Demo User Login
           </Button>
-          <Button type="button" variant="outline" className="w-full" onClick={async () => {
-            setLoading(true);
-            setError('');
-            const result = await signIn('credentials', {
-              email: 'admin@luxe.com',
-              password: 'Admin@123',
-              redirect: false,
-            });
-            if (result?.ok) {
-              store.setAuthModalOpen(false);
-              toast({ title: 'Welcome back, Admin!' });
-            } else {
-              setError('Demo admin login failed');
-            }
-            setLoading(false);
-          }} disabled={loading}>
+          <Button type="button" variant="outline" className="w-full" onClick={() => handleCredentialsAuth('admin@luxe.com', 'Admin@123')} disabled={loading}>
             <Shield className="mr-2 h-4 w-4" />
             Demo Admin Login
           </Button>

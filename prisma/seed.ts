@@ -507,12 +507,18 @@ async function main() {
   console.log(`✅ Created ${createdProducts.length} products`)
 
   // ── Users ──
+  // Hash passwords with bcryptjs
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const bcrypt = require('bcryptjs');
+  const adminPasswordHash = await bcrypt.hash('Admin@123', 10);
+  const userPasswordHash = await bcrypt.hash('User@123', 10);
+
   const adminUser = await prisma.user.create({
     data: {
       email: "admin@luxe.com",
       name: "Admin User",
       role: "admin",
-      password: "$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsv97NuEy", // Admin@123
+      password: adminPasswordHash,
       phone: "+919876543210",
       emailVerified: new Date(),
       image: "https://ui-avatars.com/api/?name=Admin+User&background=1a1a1a&color=fff&size=200",
@@ -525,7 +531,7 @@ async function main() {
       email: "user@luxe.com",
       name: "Demo User",
       role: "user",
-      password: "$2a$10$K7L1OJ45/4Y2nIvhRVpCe.FSmhDdWoXehVzJptJ/op0lSsv97NuEy", // User@123
+      password: userPasswordHash,
       phone: "+919876543211",
       emailVerified: new Date(),
       image: "https://ui-avatars.com/api/?name=Demo+User&background=4285F4&color=fff&size=200",
