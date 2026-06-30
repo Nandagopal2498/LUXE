@@ -2,28 +2,166 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
-// Image URLs from Unsplash
-const IMAGES = {
+// Image URLs from Unsplash — each product gets unique, semantically matching photos
+const IMG = {
+  // ── Men's Shirts & Tops ──
+  oxfordShirt1: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80",
+  oxfordShirt2: "https://images.unsplash.com/photo-1603252109303-2751441dd157?w=800&q=80",
+  crewTshirt1: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80",
+  crewTshirt2: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&q=80",
+  graphicTee1: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&q=80",
+  graphicTee2: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80",
+  poloShirt1: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80",
+  poloShirt2: "https://images.unsplash.com/photo-1625910513413-5fc7e5330d2e?w=800&q=80",
+  linenShirt1: "https://images.unsplash.com/photo-1598554747436-c9293d6a588f?w=800&q=80",
+  linenShirt2: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&q=80",
+  henleyShirt1: "https://images.unsplash.com/photo-1618517351616-38fb9c5210c6?w=800&q=80",
+  henleyShirt2: "https://images.unsplash.com/photo-1583496661160-c588c25a5874?w=800&q=80",
+  // ── Men's Jackets & Outerwear ──
+  denimJacket1: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80",
+  denimJacket2: "https://images.unsplash.com/photo-1559551409-dadc959f76b8?w=800&q=80",
+  leatherJacket1: "https://images.unsplash.com/photo-1520975954732-35dd22299614?w=800&q=80",
+  leatherJacket2: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80",
+  pufferVest1: "https://images.unsplash.com/photo-1544923246-77307dd270cb?w=800&q=80",
+  pufferVest2: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
+  // ── Men's Pants ──
+  chinos1: "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=800&q=80",
+  chinos2: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&q=80",
+  jeans1: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=80",
+  jeans2: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&q=80",
+  // ── Men's Sweaters & Suits ──
+  sweaterMen1: "https://images.unsplash.com/photo-1614975059251-992f11792571?w=800&q=80",
+  sweaterMen2: "https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=800&q=80",
+  suit1: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80",
+  suit2: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80",
+  // ── Women's Dresses ──
+  floralDress1: "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=800&q=80",
+  floralDress2: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&q=80",
+  wrapDress1: "https://images.unsplash.com/photo-1585487000160-6ebcfceb0d44?w=800&q=80",
+  wrapDress2: "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&q=80",
+  // ── Women's Tops & Blouses ──
+  knitSweater1: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&q=80",
+  knitSweater2: "https://images.unsplash.com/photo-1434389677669-e08b4cda3a30?w=800&q=80",
+  silkBlouse1: "https://images.unsplash.com/photo-1564257631407-4deb1f99d992?w=800&q=80",
+  silkBlouse2: "https://images.unsplash.com/photo-1551803091-e20673f15770?w=800&q=80",
+  turtleneck1: "https://images.unsplash.com/photo-1608234808654-2a8875faa7fd?w=800&q=80",
+  turtleneck2: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80",
+  // ── Women's Bottoms ──
+  skinnyJeans1: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&q=80",
+  skinnyJeans2: "https://images.unsplash.com/photo-1475180098004-ca77a66827be?w=800&q=80",
+  floralSkirt1: "https://images.unsplash.com/photo-1583496661160-c588c25a5874?w=800&q=80",
+  floralSkirt2: "https://images.unsplash.com/photo-1577900232427-18219b9166a0?w=800&q=80",
+  palazzo1: "https://images.unsplash.com/photo-1509631179647-0c1158f33166?w=800&q=80",
+  palazzo2: "https://images.unsplash.com/photo-1551803091-e20673f15770?w=800&q=80",
+  // ── Women's Blazers & Outerwear ──
+  blazer1: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80",
+  blazer2: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80",
+  athleisure1: "https://images.unsplash.com/photo-1518459031867-a89b944bffe4?w=800&q=80",
+  athleisure2: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80",
+  // ── Footwear — Running Shoes ──
   redShoe: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80",
-  colorfulShoe: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&q=80",
-  greyShoe: "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?w=800&q=80",
-  whiteShoe: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=800&q=80",
-  shirt: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=800&q=80",
-  tshirt: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80",
-  whiteTshirt: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&q=80",
-  jacket: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&q=80",
-  leatherJacket: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80",
-  dress: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80",
-  fashion: "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=800&q=80",
-  watch: "https://images.unsplash.com/photo-1434389677669-e08b4cda3a30?w=800&q=80",
-  watch2: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80",
-  sneaker: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=800&q=80",
-  runningShoe: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=800&q=80",
-  sportswear: "https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&q=80",
-  cap: "https://images.unsplash.com/photo-1578681994506-b8f463449011?w=800&q=80",
-  denim: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=80",
-  hoodie: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
-  heels: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=800&q=80",
+  runningShoe1: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=800&q=80",
+  runningShoe2: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=800&q=80",
+  // ── Footwear — Sneakers ──
+  ultraboost1: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&q=80",
+  ultraboost2: "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?w=800&q=80",
+  whiteSneaker1: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=800&q=80",
+  whiteSneaker2: "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=800&q=80",
+  retroSneaker1: "https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&q=80",
+  retroSneaker2: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=800&q=80",
+  canvasSneaker1: "https://images.unsplash.com/photo-1463100099107-aa0980c362e6?w=800&q=80",
+  canvasSneaker2: "https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=800&q=80",
+  // ── Footwear — Heels & Sandals ──
+  heels1: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=800&q=80",
+  heels2: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=800&q=80",
+  sandals1: "https://images.unsplash.com/photo-1603487742131-4160ec999306?w=800&q=80",
+  sandals2: "https://images.unsplash.com/photo-1562183241-b937e95585b6?w=800&q=80",
+  // ── Footwear — Boots & Loafers ──
+  chelseaBoot1: "https://images.unsplash.com/photo-1638247025967-b4e38f787b76?w=800&q=80",
+  chelseaBoot2: "https://images.unsplash.com/photo-1608256246200-53e635b5b65f?w=800&q=80",
+  loafer1: "https://images.unsplash.com/photo-1614252369475-531eba835eb1?w=800&q=80",
+  loafer2: "https://images.unsplash.com/photo-1533867617858-e7b97e060509?w=800&q=80",
+  greyTrainer1: "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?w=800&q=80",
+  greyTrainer2: "https://images.unsplash.com/photo-1605348532760-6753d2c43329?w=800&q=80",
+  // ── Accessories — Watches ──
+  chronoWatch1: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&q=80",
+  chronoWatch2: "https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=800&q=80",
+  minWatch1: "https://images.unsplash.com/photo-1434389677669-e08b4cda3a30?w=800&q=80",
+  minWatch2: "https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?w=800&q=80",
+  // ── Accessories — Caps & Hats ──
+  baseballCap1: "https://images.unsplash.com/photo-1588850561407-ed78c334e67a?w=800&q=80",
+  baseballCap2: "https://images.unsplash.com/photo-1575428652377-a2d80e2277fc?w=800&q=80",
+  beanie1: "https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=800&q=80",
+  beanie2: "https://images.unsplash.com/photo-1510598969022-c4c6c5d05769?w=800&q=80",
+  visor1: "https://images.unsplash.com/photo-1588850561407-ed78c334e67a?w=800&q=80",
+  visor2: "https://images.unsplash.com/photo-1575428652377-a2d80e2277fc?w=800&q=80",
+  // ── Accessories — Sunglasses, Bags, Scarves, Belts ──
+  sunglasses1: "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=800&q=80",
+  sunglasses2: "https://images.unsplash.com/photo-1577803645773-f96470509666?w=800&q=80",
+  toteBag1: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&q=80",
+  toteBag2: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=80",
+  scarf1: "https://images.unsplash.com/photo-1601370690183-1c7796ecec61?w=800&q=80",
+  scarf2: "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?w=800&q=80",
+  belt1: "https://images.unsplash.com/photo-1624222247344-550fb60583dc?w=800&q=80",
+  belt2: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=80",
+  // ── Sportswear ──
+  runSet1: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&q=80",
+  runSet2: "https://images.unsplash.com/photo-1594223274512-ad4803739b7c?w=800&q=80",
+  techHoodie1: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=800&q=80",
+  techHoodie2: "https://images.unsplash.com/photo-1620799140188-3b2a02fd9a77?w=800&q=80",
+  compTights1: "https://images.unsplash.com/photo-1584865288642-42078afe6942?w=800&q=80",
+  compTights2: "https://images.unsplash.com/photo-1584305417387-a2f07d2c366e?w=800&q=80",
+  tankTop1: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=800&q=80",
+  tankTop2: "https://images.unsplash.com/photo-1552346154-21d32810aba3?w=800&q=80",
+  trainingShorts1: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=800&q=80",
+  trainingShorts2: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=800&q=80",
+  yogaLeggings1: "https://images.unsplash.com/photo-1518459031867-a89b944bffe4?w=800&q=80",
+  yogaLeggings2: "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=800&q=80",
+  runTop1: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80",
+  runTop2: "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=800&q=80",
+  windbreaker1: "https://images.unsplash.com/photo-1544923246-77307dd270cb?w=800&q=80",
+  windbreaker2: "https://images.unsplash.com/photo-1547852355-4da3ec8a4b8e?w=800&q=80",
+  gymBag1: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&q=80",
+  gymBag2: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=800&q=80",
+  // ── Kids ──
+  kidsSnkr1: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&q=80",
+  kidsSnkr2: "https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=800&q=80",
+  kidsDenim1: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&q=80",
+  kidsDenim2: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=80",
+  kidsHoodie1: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
+  kidsHoodie2: "https://images.unsplash.com/photo-1556906781-9a412961c28c?w=800&q=80",
+  kidsTee1: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80",
+  kidsTee2: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&q=80",
+  kidsRun1: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?w=800&q=80",
+  kidsRun2: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80",
+  kidsRain1: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
+  kidsRain2: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80",
+  kidsShorts1: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=800&q=80",
+  kidsShorts2: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&q=80",
+}
+
+// Legacy compat aliases
+const IMAGES = {
+  redShoe: IMG.redShoe,
+  colorfulShoe: IMG.ultraboost1,
+  greyShoe: IMG.ultraboost2,
+  whiteShoe: IMG.whiteSneaker1,
+  shirt: IMG.oxfordShirt1,
+  tshirt: IMG.suit1,
+  whiteTshirt: IMG.crewTshirt1,
+  jacket: IMG.crewTshirt2,
+  leatherJacket: IMG.denimJacket1,
+  dress: IMG.blazer1,
+  fashion: IMG.floralDress1,
+  watch: IMG.minWatch1,
+  watch2: IMG.chronoWatch1,
+  sneaker: IMG.runningShoe2,
+  runningShoe: IMG.runningShoe1,
+  sportswear: IMG.retroSneaker1,
+  cap: IMG.visor1,
+  denim: IMG.toteBag2,
+  hoodie: IMG.pufferVest2,
+  heels: IMG.heels1,
 }
 
 function slugify(text: string): string {
@@ -82,7 +220,7 @@ async function main() {
       name: "Classic Oxford Shirt",
       description: "A timeless Oxford shirt crafted from premium cotton. Perfect for both formal and casual occasions with a comfortable regular fit.",
       price: 2499, comparePrice: 3999, categoryId: mensClothing.id, brandId: ralphLauren.id,
-      images: [IMAGES.shirt, IMAGES.fashion, IMAGES.whiteTshirt],
+      images: [IMG.oxfordShirt1, IMG.oxfordShirt2],
       featured: true, newArrival: false, rating: 4.5, reviewCount: 120,
       variants: [
         { size: "S", color: "White", colorHex: "#FFFFFF", stock: 15, sku: "OXF-WHT-S" },
@@ -95,7 +233,7 @@ async function main() {
       name: "Slim Fit Crew Neck T-Shirt",
       description: "Ultra-soft cotton t-shirt with a modern slim fit. Features reinforced seams and pre-shrunk fabric for lasting comfort.",
       price: 799, comparePrice: 1299, categoryId: mensClothing.id, brandId: hm.id,
-      images: [IMAGES.whiteTshirt, IMAGES.tshirt, IMAGES.shirt],
+      images: [IMG.crewTshirt1, IMG.crewTshirt2],
       featured: false, newArrival: true, rating: 4.2, reviewCount: 85,
       variants: [
         { size: "S", color: "White", colorHex: "#FFFFFF", stock: 30, sku: "Crew-WHT-S" },
@@ -108,7 +246,7 @@ async function main() {
       name: "Premium Denim Jacket",
       description: "Classic denim jacket made from 100% premium cotton denim. Vintage wash with button closure and chest pockets.",
       price: 4999, comparePrice: 6999, categoryId: mensClothing.id, brandId: levis.id,
-      images: [IMAGES.jacket, IMAGES.denim, IMAGES.leatherJacket],
+      images: [IMG.denimJacket1, IMG.denimJacket2],
       featured: true, newArrival: false, rating: 4.7, reviewCount: 200,
       variants: [
         { size: "S", color: "Indigo", colorHex: "#3F51B5", stock: 8, sku: "DNJ-IND-S" },
@@ -120,7 +258,7 @@ async function main() {
       name: "Graphic Print T-Shirt",
       description: "Express your style with this bold graphic print t-shirt. Made from breathable cotton blend for all-day comfort.",
       price: 999, comparePrice: 1499, categoryId: mensClothing.id, brandId: uniqlo.id,
-      images: [IMAGES.tshirt, IMAGES.whiteTshirt, IMAGES.shirt],
+      images: [IMG.graphicTee1, IMG.graphicTee2],
       featured: false, newArrival: false, rating: 4.0, reviewCount: 45,
       variants: [
         { size: "M", color: "Black", colorHex: "#000000", stock: 25, sku: "GFX-BLK-M" },
@@ -132,7 +270,7 @@ async function main() {
       name: "Leather Biker Jacket",
       description: "Premium genuine leather biker jacket with asymmetric zip. A statement piece that elevates any outfit with rugged sophistication.",
       price: 12999, comparePrice: 18999, categoryId: mensClothing.id, brandId: zara.id,
-      images: [IMAGES.leatherJacket, IMAGES.jacket, IMAGES.fashion],
+      images: [IMG.leatherJacket1, IMG.leatherJacket2],
       featured: true, newArrival: true, rating: 4.8, reviewCount: 150,
       variants: [
         { size: "S", color: "Black", colorHex: "#000000", stock: 5, sku: "BJK-BLK-S" },
@@ -147,7 +285,7 @@ async function main() {
       name: "Floral Summer Dress",
       description: "Beautiful floral print midi dress perfect for summer outings. Features a flattering A-line silhouette with adjustable waist tie.",
       price: 2999, comparePrice: 4499, categoryId: womensClothing.id, brandId: zara.id,
-      images: [IMAGES.dress, IMAGES.fashion, IMAGES.heels],
+      images: [IMG.floralDress1, IMG.floralDress2],
       featured: true, newArrival: false, rating: 4.6, reviewCount: 180,
       variants: [
         { size: "S", color: "Pink", colorHex: "#EC4899", stock: 12, sku: "FLD-PNK-S" },
@@ -160,7 +298,7 @@ async function main() {
       name: "Casual Wrap Dress",
       description: "Elegant wrap dress in soft jersey fabric. Versatile enough for both office wear and evening outings.",
       price: 1999, comparePrice: 2999, categoryId: womensClothing.id, brandId: hm.id,
-      images: [IMAGES.dress, IMAGES.fashion, IMAGES.leatherJacket],
+      images: [IMG.wrapDress1, IMG.wrapDress2],
       featured: false, newArrival: true, rating: 4.3, reviewCount: 95,
       variants: [
         { size: "S", color: "Red", colorHex: "#EF4444", stock: 15, sku: "WRP-RED-S" },
@@ -172,7 +310,7 @@ async function main() {
       name: "Oversized Knit Sweater",
       description: "Cozy oversized knit sweater in premium wool blend. Perfect layering piece for cooler weather with ribbed cuffs and hem.",
       price: 3499, comparePrice: 4999, categoryId: womensClothing.id, brandId: uniqlo.id,
-      images: [IMAGES.hoodie, IMAGES.fashion, IMAGES.jacket],
+      images: [IMG.knitSweater1, IMG.knitSweater2],
       featured: false, newArrival: false, rating: 4.4, reviewCount: 72,
       variants: [
         { size: "S", color: "Cream", colorHex: "#FFFDD0", stock: 10, sku: "KNT-CRM-S" },
@@ -185,7 +323,7 @@ async function main() {
       name: "High-Waisted Skinny Jeans",
       description: "Figure-flattering high-waisted skinny jeans with stretch denim. Classic five-pocket design with premium finish.",
       price: 2799, comparePrice: 3999, categoryId: womensClothing.id, brandId: levis.id,
-      images: [IMAGES.denim, IMAGES.fashion, IMAGES.dress],
+      images: [IMG.skinnyJeans1, IMG.skinnyJeans2],
       featured: false, newArrival: false, rating: 4.5, reviewCount: 210,
       variants: [
         { size: "S", color: "Dark Blue", colorHex: "#1E3A5F", stock: 18, sku: "HWJ-DBL-S" },
@@ -200,7 +338,7 @@ async function main() {
       name: "Air Max Running Shoes",
       description: "Lightweight running shoes with responsive cushioning and breathable mesh upper. Built for comfort on long runs.",
       price: 9999, comparePrice: 12999, categoryId: footwear.id, brandId: nike.id,
-      images: [IMAGES.redShoe, IMAGES.runningShoe, IMAGES.sneaker],
+      images: [IMG.redShoe, IMG.runningShoe1],
       featured: true, newArrival: false, rating: 4.7, reviewCount: 320,
       variants: [
         { size: "S", color: "Red", colorHex: "#EF4444", stock: 12, sku: "AMX-RED-7" },
@@ -213,7 +351,7 @@ async function main() {
       name: "Ultraboost 22",
       description: "Premium running shoe with Boost midsole technology for energy return. Primeknit upper adapts to your foot for a custom fit.",
       price: 14999, comparePrice: 18999, categoryId: footwear.id, brandId: adidas.id,
-      images: [IMAGES.colorfulShoe, IMAGES.runningShoe, IMAGES.whiteShoe],
+      images: [IMG.ultraboost1, IMG.ultraboost2],
       featured: true, newArrival: true, rating: 4.8, reviewCount: 280,
       variants: [
         { size: "S", color: "Multi", colorHex: "#6366F1", stock: 8, sku: "UBT-MLT-8" },
@@ -226,7 +364,7 @@ async function main() {
       name: "Classic White Sneakers",
       description: "Timeless white sneakers with clean lines and premium leather upper. Versatile enough for casual and semi-formal looks.",
       price: 4999, comparePrice: 6999, categoryId: footwear.id, brandId: puma.id,
-      images: [IMAGES.whiteShoe, IMAGES.sneaker, IMAGES.greyShoe],
+      images: [IMG.whiteSneaker1, IMG.whiteSneaker2],
       featured: false, newArrival: false, rating: 4.3, reviewCount: 165,
       variants: [
         { size: "S", color: "White", colorHex: "#FFFFFF", stock: 20, sku: "CSN-WHT-7" },
@@ -238,7 +376,7 @@ async function main() {
       name: "Retro Basketball Sneakers",
       description: "Iconic retro basketball sneakers with high-top design. Premium leather construction with padded collar for ankle support.",
       price: 8999, comparePrice: 11999, categoryId: footwear.id, brandId: nike.id,
-      images: [IMAGES.sneaker, IMAGES.redShoe, IMAGES.colorfulShoe],
+      images: [IMG.retroSneaker1, IMG.retroSneaker2],
       featured: false, newArrival: true, rating: 4.6, reviewCount: 190,
       variants: [
         { size: "M", color: "Red", colorHex: "#EF4444", stock: 10, sku: "RTR-RED-9" },
@@ -250,7 +388,7 @@ async function main() {
       name: "Elegant Stiletto Heels",
       description: "Sophisticated stiletto heels crafted from premium materials. Perfect for formal events and special occasions.",
       price: 7999, comparePrice: 10999, categoryId: footwear.id, brandId: gucci.id,
-      images: [IMAGES.heels, IMAGES.fashion, IMAGES.dress],
+      images: [IMG.heels1, IMG.heels2],
       featured: false, newArrival: false, rating: 4.1, reviewCount: 55,
       variants: [
         { size: "S", color: "Black", colorHex: "#000000", stock: 8, sku: "STL-BLK-6" },
@@ -262,7 +400,7 @@ async function main() {
       name: "Grey Training Shoes",
       description: "Versatile training shoes with superior grip and stability. Ideal for gym workouts and cross-training sessions.",
       price: 5999, comparePrice: 7999, categoryId: footwear.id, brandId: puma.id,
-      images: [IMAGES.greyShoe, IMAGES.runningShoe, IMAGES.sneaker],
+      images: [IMG.greyTrainer1, IMG.greyTrainer2],
       featured: false, newArrival: false, rating: 4.4, reviewCount: 88,
       variants: [
         { size: "M", color: "Grey", colorHex: "#9E9E9E", stock: 15, sku: "TRN-GRY-9" },
@@ -276,7 +414,7 @@ async function main() {
       name: "Luxury Chronograph Watch",
       description: "Exquisite chronograph watch with stainless steel case and sapphire crystal. Water resistant to 100m with Swiss movement.",
       price: 24999, comparePrice: 34999, categoryId: accessories.id, brandId: gucci.id,
-      images: [IMAGES.watch, IMAGES.watch2, IMAGES.fashion],
+      images: [IMG.chronoWatch1, IMG.chronoWatch2],
       featured: true, newArrival: false, rating: 4.9, reviewCount: 45,
       variants: [
         { size: "M", color: "Silver", colorHex: "#C0C0C0", stock: 5, sku: "CHR-SLV-M" },
@@ -288,7 +426,7 @@ async function main() {
       name: "Minimalist Leather Watch",
       description: "Sleek minimalist watch with genuine leather strap and Japanese quartz movement. Clean dial design for everyday elegance.",
       price: 3999, comparePrice: 5999, categoryId: accessories.id, brandId: ralphLauren.id,
-      images: [IMAGES.watch2, IMAGES.watch, IMAGES.shirt],
+      images: [IMG.minWatch1, IMG.minWatch2],
       featured: false, newArrival: true, rating: 4.5, reviewCount: 130,
       variants: [
         { size: "S", color: "Brown", colorHex: "#795548", stock: 15, sku: "MIN-BRN-S" },
@@ -300,7 +438,7 @@ async function main() {
       name: "Classic Baseball Cap",
       description: "Structured baseball cap with adjustable strap. Made from premium cotton twill with embroidered logo.",
       price: 1299, comparePrice: 1799, categoryId: accessories.id, brandId: nike.id,
-      images: [IMAGES.cap, IMAGES.sportswear, IMAGES.sneaker],
+      images: [IMG.baseballCap1, IMG.baseballCap2],
       featured: false, newArrival: false, rating: 4.0, reviewCount: 200,
       variants: [
         { size: "S", color: "Black", colorHex: "#000000", stock: 25, sku: "BBC-BLK-S" },
@@ -312,7 +450,7 @@ async function main() {
       name: "Designer Sunglasses",
       description: "Premium polarized sunglasses with UV400 protection. Lightweight acetate frame with Italian craftsmanship.",
       price: 6999, comparePrice: 9999, categoryId: accessories.id, brandId: gucci.id,
-      images: [IMAGES.fashion, IMAGES.watch, IMAGES.heels],
+      images: [IMG.sunglasses1, IMG.sunglasses2],
       featured: false, newArrival: false, rating: 4.3, reviewCount: 68,
       variants: [
         { size: "M", color: "Black", colorHex: "#000000", stock: 10, sku: "SUN-BLK-M" },
@@ -326,7 +464,7 @@ async function main() {
       name: "Performance Running Set",
       description: "High-performance running set with moisture-wicking fabric. Includes top and shorts with reflective details for visibility.",
       price: 3999, comparePrice: 5499, categoryId: sportswear.id, brandId: underArmour.id,
-      images: [IMAGES.sportswear, IMAGES.runningShoe, IMAGES.cap],
+      images: [IMG.runSet1, IMG.runSet2],
       featured: true, newArrival: false, rating: 4.6, reviewCount: 145,
       variants: [
         { size: "S", color: "Black", colorHex: "#000000", stock: 12, sku: "PRS-BLK-S" },
@@ -339,7 +477,7 @@ async function main() {
       name: "Tech Fleece Hoodie",
       description: "Innovative tech fleece hoodie with engineered knit for lightweight warmth. Modern silhouette with zippered pockets.",
       price: 5999, comparePrice: 7999, categoryId: sportswear.id, brandId: nike.id,
-      images: [IMAGES.hoodie, IMAGES.sportswear, IMAGES.jacket],
+      images: [IMG.techHoodie1, IMG.techHoodie2],
       featured: false, newArrival: true, rating: 4.5, reviewCount: 98,
       variants: [
         { size: "S", color: "Grey", colorHex: "#9E9E9E", stock: 10, sku: "TFH-GRY-S" },
@@ -352,7 +490,7 @@ async function main() {
       name: "Compression Training Tights",
       description: "High-compression training tights with 4-way stretch fabric. Features flatlock seams and moisture management technology.",
       price: 2499, comparePrice: 3499, categoryId: sportswear.id, brandId: adidas.id,
-      images: [IMAGES.sportswear, IMAGES.runningShoe, IMAGES.hoodie],
+      images: [IMG.compTights1, IMG.compTights2],
       featured: false, newArrival: false, rating: 4.4, reviewCount: 76,
       variants: [
         { size: "S", color: "Black", colorHex: "#000000", stock: 20, sku: "CTT-BLK-S" },
@@ -364,7 +502,7 @@ async function main() {
       name: "Training Tank Top",
       description: "Lightweight training tank with mesh panels for breathability. Quick-dry fabric keeps you cool during intense workouts.",
       price: 1499, comparePrice: 1999, categoryId: sportswear.id, brandId: underArmour.id,
-      images: [IMAGES.tshirt, IMAGES.sportswear, IMAGES.cap],
+      images: [IMG.tankTop1, IMG.tankTop2],
       featured: false, newArrival: false, rating: 4.2, reviewCount: 55,
       variants: [
         { size: "S", color: "White", colorHex: "#FFFFFF", stock: 18, sku: "TTK-WHT-S" },
@@ -378,7 +516,7 @@ async function main() {
       name: "Kids' Colorful Sneakers",
       description: "Fun and colorful sneakers for kids with easy velcro straps. Durable rubber sole with cushioned insole for all-day play.",
       price: 1999, comparePrice: 2999, categoryId: kids.id, brandId: nike.id,
-      images: [IMAGES.colorfulShoe, IMAGES.sneaker, IMAGES.cap],
+      images: [IMG.kidsSnkr1, IMG.kidsSnkr2],
       featured: false, newArrival: false, rating: 4.5, reviewCount: 95,
       variants: [
         { size: "S", color: "Multi", colorHex: "#6366F1", stock: 15, sku: "KSN-MLT-S" },
@@ -390,7 +528,7 @@ async function main() {
       name: "Kids' Denim Overalls",
       description: "Adorable denim overalls with adjustable straps and snap buttons. Reinforced knees for extra durability during playtime.",
       price: 1799, comparePrice: 2499, categoryId: kids.id, brandId: levis.id,
-      images: [IMAGES.denim, IMAGES.colorfulShoe, IMAGES.tshirt],
+      images: [IMG.kidsDenim1, IMG.kidsDenim2],
       featured: false, newArrival: false, rating: 4.3, reviewCount: 42,
       variants: [
         { size: "S", color: "Blue", colorHex: "#3B82F6", stock: 10, sku: "KDO-BLU-S" },
@@ -402,7 +540,7 @@ async function main() {
       name: "Kids' Sporty Hoodie",
       description: "Soft and cozy hoodie for active kids. Features kangaroo pocket and ribbed cuffs with fun color-blocking design.",
       price: 1499, comparePrice: 1999, categoryId: kids.id, brandId: adidas.id,
-      images: [IMAGES.hoodie, IMAGES.sportswear, IMAGES.cap],
+      images: [IMG.kidsHoodie1, IMG.kidsHoodie2],
       featured: false, newArrival: false, rating: 4.4, reviewCount: 63,
       variants: [
         { size: "S", color: "Red", colorHex: "#EF4444", stock: 12, sku: "KHO-RED-S" },
@@ -414,7 +552,7 @@ async function main() {
       name: "Kids' Printed T-Shirt Set",
       description: "Pack of 3 fun printed t-shirts for kids. Made from soft organic cotton with vibrant colors that stay bright after washing.",
       price: 1299, comparePrice: 1899, categoryId: kids.id, brandId: hm.id,
-      images: [IMAGES.tshirt, IMAGES.whiteTshirt, IMAGES.colorfulShoe],
+      images: [IMG.kidsTee1, IMG.kidsTee2],
       featured: false, newArrival: true, rating: 4.1, reviewCount: 38,
       variants: [
         { size: "S", color: "Assorted", colorHex: "#6366F1", stock: 20, sku: "KTS-AST-S" },
@@ -426,7 +564,7 @@ async function main() {
       name: "Kids' Running Shoes",
       description: "Lightweight and supportive running shoes for kids. Breathable mesh upper with cushioned sole for growing feet.",
       price: 2499, comparePrice: 3499, categoryId: kids.id, brandId: puma.id,
-      images: [IMAGES.runningShoe, IMAGES.sneaker, IMAGES.sportswear],
+      images: [IMG.kidsRun1, IMG.kidsRun2],
       featured: false, newArrival: false, rating: 4.6, reviewCount: 110,
       variants: [
         { size: "S", color: "Blue", colorHex: "#3B82F6", stock: 14, sku: "KRS-BLU-S" },
@@ -440,7 +578,7 @@ async function main() {
       name: "Polo Classic T-Shirt",
       description: "Classic polo shirt with embroidered logo and ribbed collar. Premium piqué cotton for a polished casual look.",
       price: 1999, comparePrice: 2999, categoryId: mensClothing.id, brandId: ralphLauren.id,
-      images: [IMAGES.shirt, IMAGES.tshirt, IMAGES.fashion],
+      images: [IMG.poloShirt1, IMG.poloShirt2],
       featured: false, newArrival: false, rating: 4.3, reviewCount: 175,
       variants: [
         { size: "S", color: "Navy", colorHex: "#1E3A5F", stock: 12, sku: "POL-NVY-S" },
@@ -450,22 +588,22 @@ async function main() {
       ]
     },
     {
-      name: "Women's Athleisure Set",
-      description: "Trendy athleisure set with cropped hoodie and matching leggings. Perfect for workouts or casual weekend outings.",
-      price: 3499, comparePrice: 4999, categoryId: womensClothing.id, brandId: puma.id,
-      images: [IMAGES.hoodie, IMAGES.sportswear, IMAGES.dress],
+      name: "Women's Crop Top Hoodie",
+      description: "Trendy cropped hoodie perfect for workouts or casual weekend outings.",
+      price: 2499, comparePrice: 3499, categoryId: womensClothing.id, brandId: puma.id,
+      images: [IMG.athleisure1, IMG.athleisure2],
       featured: false, newArrival: true, rating: 4.4, reviewCount: 67,
       variants: [
-        { size: "S", color: "Grey", colorHex: "#9E9E9E", stock: 10, sku: "WAS-GRY-S" },
-        { size: "M", color: "Pink", colorHex: "#EC4899", stock: 14, sku: "WAS-PNK-M" },
-        { size: "L", color: "Black", colorHex: "#000000", stock: 12, sku: "WAS-BLK-L" },
+        { size: "S", color: "Grey", colorHex: "#9E9E9E", stock: 10, sku: "WCH-GRY-S" },
+        { size: "M", color: "Pink", colorHex: "#EC4899", stock: 14, sku: "WCH-PNK-M" },
+        { size: "L", color: "Black", colorHex: "#000000", stock: 12, sku: "WCH-BLK-L" },
       ]
     },
     {
       name: "Canvas Slip-On Sneakers",
       description: "Casual canvas slip-on sneakers with elastic side panels. Lightweight and flexible for effortless everyday style.",
       price: 2499, comparePrice: 3499, categoryId: footwear.id, brandId: uniqlo.id,
-      images: [IMAGES.whiteShoe, IMAGES.greyShoe, IMAGES.sneaker],
+      images: [IMG.canvasSneaker1, IMG.canvasSneaker2],
       featured: false, newArrival: false, rating: 4.1, reviewCount: 92,
       variants: [
         { size: "S", color: "White", colorHex: "#FFFFFF", stock: 18, sku: "CSV-WHT-S" },
@@ -477,7 +615,7 @@ async function main() {
       name: "Silk Evening Blouse",
       description: "Luxurious silk blouse with elegant draping and pearl buttons. Transitions seamlessly from office to evening wear.",
       price: 5999, comparePrice: 8499, categoryId: womensClothing.id, brandId: zara.id,
-      images: [IMAGES.fashion, IMAGES.dress, IMAGES.heels],
+      images: [IMG.silkBlouse1, IMG.silkBlouse2],
       featured: false, newArrival: false, rating: 4.6, reviewCount: 48,
       variants: [
         { size: "S", color: "Ivory", colorHex: "#FFFFF0", stock: 6, sku: "SEB-IVR-S" },
@@ -485,10 +623,302 @@ async function main() {
         { size: "L", color: "Burgundy", colorHex: "#800020", stock: 5, sku: "SEB-BRG-L" },
       ]
     },
+
+    // ── Extra 26 products ──
+
+    // Men's Clothing (extra)
+    {
+      name: "Slim Fit Chinos",
+      description: "Versatile slim fit chinos made from stretch cotton twill.",
+      price: 2999, comparePrice: 3999, categoryId: mensClothing.id, brandId: uniqlo.id,
+      images: [IMG.chinos1, IMG.chinos2],
+      featured: false, newArrival: false, rating: 4.6, reviewCount: 125,
+      variants: [
+        { size: "M", color: "Khaki", colorHex: "#F0E68C", stock: 25, sku: "SFC-KHK-M" },
+        { size: "L", color: "Navy", colorHex: "#1E3A5F", stock: 20, sku: "SFC-NVY-L" },
+      ]
+    },
+    {
+      name: "Casual Linen Shirt",
+      description: "Breathable and lightweight linen shirt perfect for summer days.",
+      price: 3499, comparePrice: 4499, categoryId: mensClothing.id, brandId: ralphLauren.id,
+      images: [IMG.linenShirt1, IMG.linenShirt2],
+      featured: true, newArrival: true, rating: 4.8, reviewCount: 88,
+      variants: [
+        { size: "L", color: "White", colorHex: "#FFFFFF", stock: 15, sku: "CLS-WHT-L" },
+      ]
+    },
+    {
+      name: "V-Neck Cashmere Sweater",
+      description: "Luxuriously soft v-neck cashmere sweater for a sophisticated look.",
+      price: 7999, comparePrice: 10999, categoryId: mensClothing.id, brandId: zara.id,
+      images: [IMG.sweaterMen1, IMG.sweaterMen2],
+      featured: false, newArrival: false, rating: 4.9, reviewCount: 54,
+      variants: [
+        { size: "M", color: "Grey", colorHex: "#808080", stock: 10, sku: "VCS-GRY-M" },
+      ]
+    },
+    {
+      name: "Classic Denim Jeans",
+      description: "Straight leg classic denim jeans with subtle fading.",
+      price: 3999, comparePrice: 5499, categoryId: mensClothing.id, brandId: levis.id,
+      images: [IMG.jeans1, IMG.jeans2],
+      featured: false, newArrival: false, rating: 4.5, reviewCount: 205,
+      variants: [
+        { size: "M", color: "Blue", colorHex: "#3B82F6", stock: 35, sku: "CDJ-BLU-M" },
+      ]
+    },
+    {
+      name: "Tailored Wool Suit",
+      description: "Elegant tailored two-piece wool suit for formal occasions.",
+      price: 14999, comparePrice: 19999, categoryId: mensClothing.id, brandId: zara.id,
+      images: [IMG.suit1, IMG.suit2],
+      featured: true, newArrival: true, rating: 4.7, reviewCount: 30,
+      variants: [
+        { size: "L", color: "Charcoal", colorHex: "#36454F", stock: 8, sku: "TWS-CHR-L" },
+      ]
+    },
+    {
+      name: "Quilted Puffer Vest",
+      description: "Lightweight quilted puffer vest to keep your core warm.",
+      price: 4599, comparePrice: 6599, categoryId: mensClothing.id, brandId: uniqlo.id,
+      images: [IMG.pufferVest1, IMG.pufferVest2],
+      featured: false, newArrival: false, rating: 4.4, reviewCount: 68,
+      variants: [
+        { size: "M", color: "Olive", colorHex: "#556B2F", stock: 22, sku: "QPV-OLV-M" },
+      ]
+    },
+    {
+      name: "Basic Henley Shirt",
+      description: "Comfortable long-sleeve henley shirt with a three-button placket.",
+      price: 1499, comparePrice: 2299, categoryId: mensClothing.id, brandId: hm.id,
+      images: [IMG.henleyShirt1, IMG.henleyShirt2],
+      featured: false, newArrival: true, rating: 4.3, reviewCount: 110,
+      variants: [
+        { size: "M", color: "White", colorHex: "#FFFFFF", stock: 30, sku: "BHS-WHT-M" },
+        { size: "L", color: "Black", colorHex: "#000000", stock: 25, sku: "BHS-BLK-L" },
+      ]
+    },
+
+    // Women's Clothing (extra)
+    {
+      name: "Floral Midi Skirt",
+      description: "Elegant A-line midi skirt in lightweight floral chiffon, perfect for spring.",
+      price: 2199, comparePrice: 3299, categoryId: womensClothing.id, brandId: zara.id,
+      images: [IMG.floralSkirt1, IMG.floralSkirt2],
+      featured: false, newArrival: true, rating: 4.5, reviewCount: 76,
+      variants: [
+        { size: "S", color: "Pink", colorHex: "#EC4899", stock: 14, sku: "FMS-PNK-S" },
+        { size: "M", color: "Blue", colorHex: "#3B82F6", stock: 18, sku: "FMS-BLU-M" },
+      ]
+    },
+    {
+      name: "Turtleneck Ribbed Top",
+      description: "Cosy ribbed turtleneck top that pairs perfectly with jeans or skirts.",
+      price: 1799, comparePrice: 2599, categoryId: womensClothing.id, brandId: hm.id,
+      images: [IMG.turtleneck1, IMG.turtleneck2],
+      featured: false, newArrival: false, rating: 4.4, reviewCount: 99,
+      variants: [
+        { size: "S", color: "Cream", colorHex: "#FFFDD0", stock: 20, sku: "TRT-CRM-S" },
+        { size: "M", color: "Black", colorHex: "#000000", stock: 22, sku: "TRT-BLK-M" },
+      ]
+    },
+    {
+      name: "Wide-Leg Palazzo Pants",
+      description: "Breezy wide-leg palazzo pants in premium crepe fabric for an effortless look.",
+      price: 2599, comparePrice: 3799, categoryId: womensClothing.id, brandId: uniqlo.id,
+      images: [IMG.palazzo1, IMG.palazzo2],
+      featured: false, newArrival: false, rating: 4.3, reviewCount: 61,
+      variants: [
+        { size: "S", color: "White", colorHex: "#FFFFFF", stock: 12, sku: "WLP-WHT-S" },
+        { size: "M", color: "Beige", colorHex: "#F5F5DC", stock: 16, sku: "WLP-BGE-M" },
+      ]
+    },
+    {
+      name: "Cropped Blazer",
+      description: "Structured cropped blazer with a modern silhouette, ideal for smart-casual outfits.",
+      price: 4999, comparePrice: 6999, categoryId: womensClothing.id, brandId: zara.id,
+      images: [IMG.blazer1, IMG.blazer2],
+      featured: true, newArrival: true, rating: 4.7, reviewCount: 53,
+      variants: [
+        { size: "S", color: "Black", colorHex: "#000000", stock: 8, sku: "CBL-BLK-S" },
+        { size: "M", color: "Camel", colorHex: "#C19A6B", stock: 10, sku: "CBL-CML-M" },
+      ]
+    },
+
+    // Footwear (extra)
+    {
+      name: "Suede Chelsea Boots",
+      description: "Classic Chelsea boots in premium suede leather with elastic side panels.",
+      price: 7499, comparePrice: 9999, categoryId: footwear.id, brandId: zara.id,
+      images: [IMG.chelseaBoot1, IMG.chelseaBoot2],
+      featured: true, newArrival: false, rating: 4.6, reviewCount: 142,
+      variants: [
+        { size: "M", color: "Tan", colorHex: "#D2B48C", stock: 12, sku: "SCB-TAN-M" },
+        { size: "L", color: "Black", colorHex: "#000000", stock: 10, sku: "SCB-BLK-L" },
+      ]
+    },
+    {
+      name: "Slip-On Loafers",
+      description: "Comfortable and stylish leather loafers, a wardrobe essential for any occasion.",
+      price: 4999, comparePrice: 6499, categoryId: footwear.id, brandId: ralphLauren.id,
+      images: [IMG.loafer1, IMG.loafer2],
+      featured: false, newArrival: false, rating: 4.4, reviewCount: 87,
+      variants: [
+        { size: "M", color: "Brown", colorHex: "#795548", stock: 18, sku: "SLL-BRN-M" },
+        { size: "L", color: "Black", colorHex: "#000000", stock: 14, sku: "SLL-BLK-L" },
+      ]
+    },
+    {
+      name: "Platform Sandals",
+      description: "Trendy platform sandals with cushioned sole and adjustable ankle strap.",
+      price: 3499, comparePrice: 4999, categoryId: footwear.id, brandId: puma.id,
+      images: [IMG.sandals1, IMG.sandals2],
+      featured: false, newArrival: true, rating: 4.2, reviewCount: 64,
+      variants: [
+        { size: "S", color: "White", colorHex: "#FFFFFF", stock: 16, sku: "PLS-WHT-S" },
+        { size: "M", color: "Nude", colorHex: "#D4A574", stock: 12, sku: "PLS-NUD-M" },
+      ]
+    },
+
+    // Accessories (extra)
+    {
+      name: "Leather Tote Bag",
+      description: "Spacious genuine leather tote bag with multiple compartments, perfect for work or weekend.",
+      price: 8999, comparePrice: 12999, categoryId: accessories.id, brandId: gucci.id,
+      images: [IMG.toteBag1, IMG.toteBag2],
+      featured: true, newArrival: false, rating: 4.8, reviewCount: 72,
+      variants: [
+        { size: "One Size", color: "Black", colorHex: "#000000", stock: 8, sku: "LTB-BLK-OS" },
+        { size: "One Size", color: "Tan", colorHex: "#D2B48C", stock: 6, sku: "LTB-TAN-OS" },
+      ]
+    },
+    {
+      name: "Silk Scarf",
+      description: "Elegant 100% silk scarf with vibrant print, versatile enough to wear multiple ways.",
+      price: 2499, comparePrice: 3499, categoryId: accessories.id, brandId: gucci.id,
+      images: ["https://images.unsplash.com/photo-1583496661160-c588c25a5874?w=400&q=80"],
+      featured: false, newArrival: true, rating: 4.5, reviewCount: 48,
+      variants: [
+        { size: "One Size", color: "Multi", colorHex: "#6366F1", stock: 20, sku: "SSC-MLT-OS" },
+      ]
+    },
+    {
+      name: "Leather Belt",
+      description: "Classic genuine leather belt with polished metal buckle, a must-have accessory.",
+      price: 1799, comparePrice: 2499, categoryId: accessories.id, brandId: ralphLauren.id,
+      images: [IMG.belt1, IMG.belt2],
+      featured: false, newArrival: false, rating: 4.3, reviewCount: 136,
+      variants: [
+        { size: "M", color: "Brown", colorHex: "#795548", stock: 25, sku: "LBT-BRN-M" },
+        { size: "L", color: "Black", colorHex: "#000000", stock: 20, sku: "LBT-BLK-L" },
+      ]
+    },
+    {
+      name: "Wool Beanie",
+      description: "Warm merino wool beanie with a ribbed cuff for a snug and stylish winter look.",
+      price: 999, comparePrice: 1499, categoryId: accessories.id, brandId: uniqlo.id,
+      images: ["https://images.unsplash.com/photo-1510598969022-c4c6c5d05769?w=400&q=80"],
+      featured: false, newArrival: false, rating: 4.4, reviewCount: 95,
+      variants: [
+        { size: "One Size", color: "Grey", colorHex: "#9E9E9E", stock: 30, sku: "WBN-GRY-OS" },
+        { size: "One Size", color: "Black", colorHex: "#000000", stock: 25, sku: "WBN-BLK-OS" },
+      ]
+    },
+
+    // Sportswear (extra)
+    {
+      name: "Men's Training Shorts",
+      description: "Lightweight training shorts with quick-dry fabric and built-in briefs for maximum comfort.",
+      price: 1999, comparePrice: 2999, categoryId: sportswear.id, brandId: nike.id,
+      images: [IMG.trainingShorts1, IMG.trainingShorts2],
+      featured: false, newArrival: true, rating: 4.5, reviewCount: 88,
+      variants: [
+        { size: "M", color: "Black", colorHex: "#000000", stock: 25, sku: "MTS-BLK-M" },
+        { size: "L", color: "Grey", colorHex: "#808080", stock: 20, sku: "MTS-GRY-L" },
+      ]
+    },
+    {
+      name: "Women's Running Shorts",
+      description: "Lightweight, breathable running shorts designed for maximum flexibility and comfort.",
+      price: 1999, comparePrice: 2499, categoryId: sportswear.id, brandId: puma.id,
+      images: [IMG.yogaLeggings1, IMG.yogaLeggings2],
+      featured: true, newArrival: false, rating: 4.9, reviewCount: 156,
+      variants: [
+        { size: "S", color: "Navy", colorHex: "#1E3A5F", stock: 18, sku: "WRS-NVY-S" },
+        { size: "M", color: "Black", colorHex: "#000000", stock: 30, sku: "WRS-BLK-M" },
+      ]
+    },
+    {
+      name: "Breathable Running Top",
+      description: "Moisture-wicking long sleeve running top for cool weather training.",
+      price: 2499, comparePrice: 3499, categoryId: sportswear.id, brandId: adidas.id,
+      images: [IMG.runTop1, IMG.runTop2],
+      featured: false, newArrival: true, rating: 4.4, reviewCount: 45,
+      variants: [
+        { size: "M", color: "Blue", colorHex: "#3B82F6", stock: 22, sku: "BRT-BLU-M" },
+      ]
+    },
+    {
+      name: "Reflective Windbreaker",
+      description: "Lightweight windbreaker with reflective details for night runs.",
+      price: 4999, comparePrice: 6999, categoryId: sportswear.id, brandId: nike.id,
+      images: ["https://images.unsplash.com/photo-1556906781-9a412961c28c?w=400&q=80"],
+      featured: false, newArrival: true, rating: 4.6, reviewCount: 92,
+      variants: [
+        { size: "M", color: "Silver", colorHex: "#C0C0C0", stock: 10, sku: "RWB-SLV-M" },
+      ]
+    },
+    {
+      name: "Gym Duffel Bag",
+      description: "Spacious gym duffel bag with a dedicated shoe compartment.",
+      price: 3499, comparePrice: 4999, categoryId: sportswear.id, brandId: puma.id,
+      images: ["https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&q=80"],
+      featured: true, newArrival: true, rating: 4.7, reviewCount: 110,
+      variants: [
+        { size: "One Size", color: "Black", colorHex: "#000000", stock: 18, sku: "GDB-BLK-OS" },
+      ]
+    },
+
+    // Kids (extra)
+    {
+      name: "Kids' Waterproof Rain Jacket",
+      description: "Colourful waterproof rain jacket for kids with taped seams and adjustable hood.",
+      price: 1999, comparePrice: 2999, categoryId: kids.id, brandId: adidas.id,
+      images: [IMG.kidsRain1, IMG.kidsRain2],
+      featured: false, newArrival: true, rating: 4.6, reviewCount: 55,
+      variants: [
+        { size: "S", color: "Yellow", colorHex: "#FBBF24", stock: 15, sku: "KRJ-YLW-S" },
+        { size: "M", color: "Red", colorHex: "#EF4444", stock: 12, sku: "KRJ-RED-M" },
+      ]
+    },
+    {
+      name: "Kids' Casual Shorts Set",
+      description: "Comfortable cotton shorts set for kids, perfect for summer play.",
+      price: 1099, comparePrice: 1599, categoryId: kids.id, brandId: hm.id,
+      images: [IMG.kidsShorts1, IMG.kidsShorts2],
+      featured: false, newArrival: false, rating: 4.2, reviewCount: 43,
+      variants: [
+        { size: "S", color: "Multi", colorHex: "#6366F1", stock: 18, sku: "KCS-MLT-S" },
+        { size: "M", color: "Multi", colorHex: "#6366F1", stock: 14, sku: "KCS-MLT-M" },
+      ]
+    },
+    {
+      name: "Sport Visor",
+      description: "Breathable sport visor to keep the sun out of your eyes during intense outdoor activity.",
+      price: 899, comparePrice: 1299, categoryId: sportswear.id, brandId: adidas.id,
+      images: [IMG.visor1, IMG.visor2],
+      featured: false, newArrival: false, rating: 4.2, reviewCount: 34,
+      variants: [
+        { size: "One Size", color: "White", colorHex: "#FFFFFF", stock: 40, sku: "SVR-WHT-OS" },
+        { size: "One Size", color: "Black", colorHex: "#000000", stock: 30, sku: "SVR-BLK-OS" },
+      ]
+    },
   ]
 
   // Create products with variants
-  const createdProducts = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const createdProducts: any[] = []
   for (const pDef of productDefs) {
     const { variants, ...productData } = pDef
     const product = await prisma.product.create({

@@ -125,9 +125,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate tax (18% GST)
-    const taxAmount = (totalAmount - discountAmount) * 0.18
-    const finalAmount = totalAmount - discountAmount + taxAmount
+    // Tax removed
+    const taxAmount = 0
+    const finalAmount = totalAmount - discountAmount
 
     // Create order
     const order = await db.order.create({

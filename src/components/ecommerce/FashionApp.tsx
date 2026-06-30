@@ -35,6 +35,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useUser, useClerk, SignInButton } from '@clerk/nextjs';
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -76,10 +77,14 @@ function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 32, total: 0, totalPages: 0 });
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const filters = useStore((s) => s.filters);
 
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (page = 1, append = false) => {
     try {
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+
       const params = new URLSearchParams();
       if (filters.search) params.set('search', filters.search);
       if (filters.categoryId) params.set('category', filters.categoryId);
@@ -88,36 +93,67 @@ function useProducts() {
       if (filters.maxPrice < 50000) params.set('maxPrice', String(filters.maxPrice));
       params.set('sort', filters.sort);
       params.set('limit', '32');
+      params.set('page', String(page));
+
       const res = await fetch(`/api/products?${params}`);
       const data = await res.json();
-      setProducts(data.products || []);
+
+      setProducts((prev) => append ? [...prev, ...(data.products || [])] : (data.products || []));
       setPagination(data.pagination || { page: 1, limit: 32, total: 0, totalPages: 0 });
     } catch (err) {
       console.error('Failed to fetch products:', err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [filters]);
 
   useEffect(() => {
-    const timer = setTimeout(fetchProducts, 300);
+    const timer = setTimeout(() => fetchProducts(1, false), 300);
     return () => clearTimeout(timer);
   }, [fetchProducts]);
 
-  return { products, pagination, loading, refetch: fetchProducts };
+  const loadMore = () => {
+    if (pagination.page < pagination.totalPages) {
+      fetchProducts(pagination.page + 1, true);
+    }
+  };
+
+  return { products, pagination, loading, loadingMore, loadMore, refetch: () => fetchProducts(1, false) };
 }
 
-function useFeaturedProducts() {
+function useTrendingProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/products?featured=true&limit=8&sort=newest')
+    fetch('/api/products/trending')
       .then((res) => res.json())
       .then((data) => setProducts(data.products || []))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  return { products, loading };
+}
+
+function useRecentlyViewedProducts() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const store = useStore();
+
+  useEffect(() => {
+    if (store.recentlyViewed.length === 0) {
+      setLoading(false);
+      return;
+    }
+    const ids = store.recentlyViewed.slice(0, 10).join(',');
+    fetch(`/api/products/recently-viewed?ids=${ids}`)
+      .then((res) => res.json())
+      .then((data) => setProducts(data.products || []))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [store.recentlyViewed]);
 
   return { products, loading };
 }
@@ -207,9 +243,8 @@ function StarRating({ rating, size = 16, interactive = false, onChange }: {
           key={i}
           type="button"
           disabled={!interactive}
-          className={`${interactive ? 'cursor-pointer' : 'cursor-default'} transition-transform ${
-            interactive ? 'hover:scale-110' : ''
-          }`}
+          className={`${interactive ? 'cursor-pointer' : 'cursor-default'} transition-transform ${interactive ? 'hover:scale-110' : ''
+            }`}
           onMouseEnter={() => interactive && setHovered(i)}
           onMouseLeave={() => interactive && setHovered(0)}
           onClick={() => interactive && onChange?.(i)}
@@ -234,6 +269,8 @@ function Header({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMod
   const store = useStore();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { openSignIn, signOut } = useClerk();
+  const { isLoaded } = useUser();
   const cartCount = store.cart.reduce((sum, item) => sum + item.quantity, 0);
   const [searchValue, setSearchValue] = useState('');
 
@@ -245,7 +282,11 @@ function Header({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMod
   };
 
   const handleLogout = async () => {
-    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
+    try {
+      await signOut();
+    } catch (err) {
+      console.error(err);
+    }
     store.setUser(null);
     toast({ title: 'Logged out successfully' });
   };
@@ -275,15 +316,14 @@ function Header({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMod
             {[
               { label: 'Home', view: 'home' as const },
               { label: 'Shop', view: 'shop' as const },
-              { label: 'New Arrivals', view: 'shop' as const, filter: { newArrival: true } },
+
             ].map((item) => (
               <Button
                 key={item.label}
                 variant="ghost"
                 size="sm"
-                className={`text-sm font-medium ${
-                  store.currentView === item.view ? 'text-foreground' : 'text-muted-foreground'
-                }`}
+                className={`text-sm font-medium ${store.currentView === item.view ? 'text-foreground' : 'text-muted-foreground'
+                  }`}
                 onClick={() => {
                   if (item.filter) store.setFilters({ sort: 'newest' });
                   store.setView(item.view);
@@ -362,25 +402,25 @@ function Header({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMod
             </Tooltip>
           </TooltipProvider>
 
-          {store.user ? (
+          {!isLoaded ? (
+            <Skeleton className="ml-1 h-8 w-20 rounded-md" />
+          ) : store.user ? (
             <DropdownMenu
               user={store.user}
               onLogout={handleLogout}
               onViewChange={store.setView}
             />
           ) : (
-            <Button
-              variant="default"
-              size="sm"
-              className="ml-1 bg-foreground text-background hover:bg-foreground/90"
-              onClick={() => {
-                store.setAuthMode('login');
-                store.setAuthModalOpen(true);
-              }}
-            >
-              <User className="mr-1 h-4 w-4" />
-              <span className="hidden sm:inline">Sign In</span>
-            </Button>
+            <SignInButton>
+              <Button
+                variant="default"
+                size="sm"
+                className="ml-1 bg-foreground text-background hover:bg-foreground/90"
+              >
+                <User className="mr-1 h-4 w-4" />
+                <span className="hidden sm:inline">Sign In</span>
+              </Button>
+            </SignInButton>
           )}
         </div>
       </div>
@@ -600,10 +640,10 @@ function SearchModal() {
 function GoogleIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24">
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
     </svg>
   );
 }
@@ -813,6 +853,9 @@ function ProductCard({ product, index = 0 }: { product: Product; index?: number 
   const isWishlisted = store.wishlist.includes(product.id);
   const discount = product.comparePrice ? getDiscountPercent(product.price, product.comparePrice) : 0;
 
+  const fullStars = Math.floor(product.rating || 0);
+  const emptyStars = 5 - fullStars;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -821,41 +864,42 @@ function ProductCard({ product, index = 0 }: { product: Product; index?: number 
       className="group relative"
     >
       <div
-        className="cursor-pointer overflow-hidden rounded-xl border bg-card transition-all duration-300 hover:shadow-lg hover:border-foreground/10"
+        className="cursor-pointer overflow-hidden rounded-xl border border-border/50 bg-white transition-all duration-300 hover:shadow-md max-w-[340px] mx-auto w-full"
         onClick={() => {
           store.setView('product', product.id);
           store.addRecentlyViewed(product.id);
         }}
       >
         {/* Image */}
-        <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+        <div className="relative aspect-square overflow-hidden bg-[#f0f0f0]">
           <img
-            src={images[0] || '/logo.svg'}
+            key={product.id}
+            src={images[0]}
             alt={product.name}
             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
             loading="lazy"
           />
           {/* Badges */}
-          <div className="absolute left-3 top-3 flex flex-col gap-1.5">
+          <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
             {discount > 0 && (
-              <Badge className="bg-red-500 text-white hover:bg-red-600 text-[10px] font-bold px-2">
+              <span className="bg-[#ef4444] text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                 -{discount}%
-              </Badge>
+              </span>
             )}
             {product.newArrival && (
-              <Badge className="bg-emerald-500 text-white hover:bg-emerald-600 text-[10px] font-bold px-2">
+              <span className="bg-[#10b981] text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                 NEW
-              </Badge>
+              </span>
             )}
-            {product.featured && (
-              <Badge className="bg-amber-500 text-white hover:bg-amber-600 text-[10px] font-bold px-2">
-                TRENDING
-              </Badge>
+            {discount === 0 && !product.newArrival && (
+              <div className="invisible px-2.5 py-0.5 text-[11px] font-bold">
+                PLACEHOLDER
+              </div>
             )}
           </div>
           {/* Wishlist button */}
           <button
-            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm transition-all hover:bg-white hover:scale-110 dark:bg-black/50 dark:hover:bg-black/70"
+            className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm transition-all hover:scale-110"
             onClick={(e) => {
               e.stopPropagation();
               store.toggleWishlist(product.id);
@@ -865,39 +909,30 @@ function ProductCard({ product, index = 0 }: { product: Product; index?: number 
               });
             }}
           >
-            <Heart className={`h-4 w-4 transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-foreground/70'}`} />
+            <Heart className={`h-[15px] w-[15px] transition-colors ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-gray-600'}`} />
           </button>
-          {/* Quick add */}
-          <div className="absolute bottom-0 left-0 right-0 translate-y-full transition-transform duration-300 group-hover:translate-y-0">
-            <Button
-              className="w-full rounded-none bg-foreground/90 text-background backdrop-blur-sm hover:bg-foreground text-sm py-3"
-              onClick={(e) => {
-                e.stopPropagation();
-                store.addToCart(product.id);
-                store.setCartOpen(true);
-                toast({ title: 'Added to cart', duration: 1500 });
-              }}
-            >
-              <ShoppingBag className="mr-2 h-4 w-4" /> Quick Add
-            </Button>
-          </div>
         </div>
         {/* Info */}
-        <div className="p-3 sm:p-4">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            {product.brand.name}
+        <div className="p-4 bg-white">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-gray-500 mb-1">
+            {product.brand?.name || 'BRAND'}
           </p>
-          <h3 className="mt-1 text-sm font-semibold leading-tight line-clamp-2 group-hover:text-foreground/80">
+          <h3 className="text-[15px] font-bold text-gray-900 leading-tight line-clamp-2 mb-1.5">
             {product.name}
           </h3>
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <StarRating rating={product.rating} size={12} />
-            <span className="text-[11px] text-muted-foreground">({product.reviewCount})</span>
+
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <div className="text-[13px] tracking-widest">
+              <span className="text-[#fbbf24]">{'★'.repeat(fullStars)}</span>
+              <span className="text-gray-300">{'☆'.repeat(emptyStars)}</span>
+            </div>
+            <span className="text-[12px] text-gray-500">({product.reviewCount || 0})</span>
           </div>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="text-base font-bold">{formatPrice(product.price)}</span>
-            {product.comparePrice && (
-              <span className="text-sm text-muted-foreground line-through">
+
+          <div className="flex items-baseline gap-2">
+            <span className="text-[17px] font-bold text-gray-900">{formatPrice(product.price)}</span>
+            {product.comparePrice && product.comparePrice > product.price && (
+              <span className="text-[13px] text-gray-400 line-through">
                 {formatPrice(product.comparePrice)}
               </span>
             )}
@@ -961,7 +996,7 @@ function HeroSection() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-neutral-600 text-white hover:bg-white/10 h-12 px-8 text-base"
+                  className="border-neutral-600 bg-transparent text-white hover:bg-white/10 hover:text-white h-12 px-8 text-base"
                   onClick={() => store.setFilters({ sort: 'newest' }) || store.setView('shop')}
                 >
                   New Arrivals
@@ -1051,10 +1086,10 @@ function CategoryStrip() {
   );
 }
 
-// ==================== FEATURED SECTION ====================
+// ==================== TRENDING SECTION ====================
 
-function FeaturedSection() {
-  const { products, loading } = useFeaturedProducts();
+function TrendingSection() {
+  const { products, loading } = useTrendingProducts();
   const store = useStore();
 
   if (loading) return <ProductGridSkeleton />;
@@ -1081,6 +1116,41 @@ function FeaturedSection() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {products.map((product, i) => (
             <ProductCard key={product.id} product={product} index={i} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ==================== RECENTLY VIEWED SECTION ====================
+
+function RecentlyViewedSection() {
+  const { products, loading } = useRecentlyViewedProducts();
+  const store = useStore();
+
+  if (loading || products.length === 0) return null;
+
+  return (
+    <section className="py-16 sm:py-20 bg-muted/20 border-t border-b">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex items-end justify-between mb-10">
+          <div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+            >
+              <p className="text-sm font-medium uppercase tracking-wider text-blue-500">Your History</p>
+              <h2 className="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">Recently Viewed</h2>
+            </motion.div>
+          </div>
+        </div>
+        <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 sm:gap-6 pb-6 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar">
+          {products.map((product, i) => (
+            <div key={product.id} className="min-w-[280px] w-[280px] sm:min-w-[320px] sm:w-[320px] snap-start shrink-0">
+              <ProductCard product={product} index={i} />
+            </div>
           ))}
         </div>
       </div>
@@ -1155,7 +1225,7 @@ function PromoBanner() {
             className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 p-8 sm:p-10 min-h-[280px] flex flex-col justify-end"
           >
             <div className="absolute top-0 right-0 w-1/2 h-full opacity-20">
-              <img src="https://images.unsplash.com/photo-1434389677669-e08b4cda3a30?w=600&q=80" alt="" className="h-full w-full object-cover" />
+              <img src="https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=600&q=80" alt="" className="h-full w-full object-cover" />
             </div>
             <Badge className="w-fit bg-foreground/10 text-foreground mb-4">New Collection</Badge>
             <h3 className="text-2xl sm:text-3xl font-bold text-foreground">Accessories Edit</h3>
@@ -1203,7 +1273,7 @@ function FeaturesBar() {
 // ==================== SHOP VIEW ====================
 
 function ShopView() {
-  const { products, loading, pagination } = useProducts();
+  const { products, loading, loadingMore, loadMore, pagination } = useProducts();
   const store = useStore();
   const categories = useCategories();
   const brands = useBrands();
@@ -1284,11 +1354,14 @@ function ShopView() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {products.map((product, i) => (
-                <ProductCard key={product.id} product={product} index={i} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {products.map((product, i) => (
+                  <ProductCard key={product.id} product={product} index={i} />
+                ))}
+              </div>
+
+            </>
           )}
         </div>
       </div>
@@ -1317,9 +1390,8 @@ function FilterPanel({ categories, brands, onClose }: { categories: Category[]; 
         <h3 className="text-sm font-semibold mb-3">Categories</h3>
         <div className="space-y-1">
           <button
-            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-              !store.filters.categoryId ? 'bg-accent font-medium' : 'hover:bg-accent/50'
-            }`}
+            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${!store.filters.categoryId ? 'bg-accent font-medium' : 'hover:bg-accent/50'
+              }`}
             onClick={() => { store.setFilters({ categoryId: '' }); onClose?.(); }}
           >
             All Categories
@@ -1327,9 +1399,8 @@ function FilterPanel({ categories, brands, onClose }: { categories: Category[]; 
           {categories.map((cat) => (
             <button
               key={cat.id}
-              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-                store.filters.categoryId === cat.id ? 'bg-accent font-medium' : 'hover:bg-accent/50'
-              }`}
+              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${store.filters.categoryId === cat.id ? 'bg-accent font-medium' : 'hover:bg-accent/50'
+                }`}
               onClick={() => handleCategoryClick(cat.id)}
             >
               {cat.name}
@@ -1346,9 +1417,8 @@ function FilterPanel({ categories, brands, onClose }: { categories: Category[]; 
         <h3 className="text-sm font-semibold mb-3">Brands</h3>
         <div className="space-y-1">
           <button
-            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-              !store.filters.brandId ? 'bg-accent font-medium' : 'hover:bg-accent/50'
-            }`}
+            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${!store.filters.brandId ? 'bg-accent font-medium' : 'hover:bg-accent/50'
+              }`}
             onClick={() => { store.setFilters({ brandId: '' }); onClose?.(); }}
           >
             All Brands
@@ -1356,9 +1426,8 @@ function FilterPanel({ categories, brands, onClose }: { categories: Category[]; 
           {brands.map((brand) => (
             <button
               key={brand.id}
-              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
-                store.filters.brandId === brand.id ? 'bg-accent font-medium' : 'hover:bg-accent/50'
-              }`}
+              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${store.filters.brandId === brand.id ? 'bg-accent font-medium' : 'hover:bg-accent/50'
+                }`}
               onClick={() => handleBrandClick(brand.id)}
             >
               {brand.name}
@@ -1400,12 +1469,99 @@ function FilterPanel({ categories, brands, onClose }: { categories: Category[]; 
     </div>
   );
 }
+// ==================== CUSTOMERS ALSO VIEWED ====================
+
+function CustomersAlsoViewed({ productId }: { productId: string }) {
+  const [recommendations, setRecommendations] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const store = useStore();
+
+  useEffect(() => {
+    // Only fetch if we have a productId
+    if (!productId) return;
+
+    // Get up to 5 recent IDs, excluding the current one
+    const recentIds = store.recentlyViewed.filter(id => id !== productId).slice(0, 5).join(',');
+
+    fetch(`/api/customers-also-viewed?productId=${productId}&recentIds=${recentIds}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.products) setRecommendations(data.products);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [productId, store.recentlyViewed]);
+
+  if (loading || recommendations.length === 0) return null;
+
+  return (
+    <section className="mt-16 border-t pt-12">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold font-serif flex items-center gap-2">
+            <span className="bg-foreground text-background w-8 h-8 rounded-full inline-flex items-center justify-center text-sm">✦</span>
+            Customers Also Viewed
+          </h2>
+          <p className="text-muted-foreground mt-1">Based on your recent browsing session</p>
+        </div>
+      </div>
+
+      {/* We use a scrollable flex container to simulate a carousel */}
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 sm:gap-6 pb-6 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar">
+        {recommendations.map((p, i) => (
+          <div key={p.id} className="min-w-[280px] w-[280px] sm:min-w-[320px] sm:w-[320px] snap-start shrink-0">
+            <ProductCard product={p} index={i} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ==================== COMPLETE THE LOOK ====================
+
+function CompleteTheLook({ productId, categoryId }: { productId: string; categoryId: string }) {
+  const [complements, setComplements] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/complete-look?productId=${productId}&categoryId=${categoryId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.products) setComplements(data.products);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [productId, categoryId]);
+
+  if (loading || complements.length === 0) return null;
+
+  return (
+    <section className="mt-16 border-t pt-12">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold font-serif flex items-center gap-2">
+            <span className="bg-foreground text-background w-8 h-8 rounded-full inline-flex items-center justify-center text-sm">✦</span>
+            Complete the Look
+          </h2>
+          <p className="text-muted-foreground mt-1">Perfect pieces to pair with this item</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+        {complements.slice(0, 4).map((p, i) => (
+          <ProductCard key={p.id} product={p} index={i} />
+        ))}
+      </div>
+    </section>
+  );
+}
 
 // ==================== PRODUCT DETAIL VIEW ====================
 
 function ProductDetailView() {
   const store = useStore();
   const { toast } = useToast();
+  const { openSignIn } = useClerk();
   const { product, loading } = useProduct(store.selectedProductId);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState('');
@@ -1419,19 +1575,32 @@ function ProductDetailView() {
 
   // State resets when product changes because parent uses key={selectedProductId}
 
-  // Fetch recommendations
   useEffect(() => {
     if (!product) return;
     fetch(`/api/recommendations?productId=${product.id}&category=${product.categoryId}`)
       .then((r) => r.json())
       .then((data) => setRecommendations(data.products || []))
-      .catch(() => {});
+      .catch(() => { });
   }, [product?.id, product?.categoryId]);
+
+  // Track recently viewed
+  useEffect(() => {
+    if (product?.id) {
+      store.addRecentlyViewed(product.id);
+    }
+  }, [product?.id]);
 
   if (loading) return <ProductDetailSkeleton />;
   if (!product) return <div className="py-20 text-center">Product not found</div>;
 
-  const images = parseImages(product.images);
+  let images = Array.from(new Set(parseImages(product.images)));
+  if (images.length === 0) {
+    images = ['/logo.svg', '/logo.svg'];
+  } else if (images.length === 1) {
+    images = [images[0], images[0]];
+  } else if (images.length > 4) {
+    images = images.slice(0, 4);
+  }
   const discount = product.comparePrice ? getDiscountPercent(product.price, product.comparePrice) : 0;
   const isWishlisted = store.wishlist.includes(product.id);
 
@@ -1494,6 +1663,9 @@ function ProductDetailView() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <Button variant="ghost" className="mb-4" onClick={() => store.setView('shop')}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Shop
+      </Button>
       {/* Breadcrumb */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
         <button onClick={() => store.setView('home')} className="hover:text-foreground transition-colors">Home</button>
@@ -1531,9 +1703,8 @@ function ProductDetailView() {
               {images.map((img, i) => (
                 <button
                   key={i}
-                  className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
-                    i === selectedImage ? 'border-foreground' : 'border-transparent opacity-60 hover:opacity-100'
-                  }`}
+                  className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition-all ${i === selectedImage ? 'border-foreground' : 'border-transparent opacity-60 hover:opacity-100'
+                    }`}
                   onClick={() => setSelectedImage(i)}
                 >
                   <img src={img} alt="" className="h-full w-full object-cover" />
@@ -1581,9 +1752,8 @@ function ProductDetailView() {
                 return (
                   <button
                     key={color}
-                    className={`h-10 w-10 rounded-full border-2 transition-all ${
-                      effectiveColor === color ? 'border-foreground scale-110' : 'border-muted hover:border-foreground/30'
-                    }`}
+                    className={`h-10 w-10 rounded-full border-2 transition-all ${effectiveColor === color ? 'border-foreground scale-110' : 'border-muted hover:border-foreground/30'
+                      }`}
                     style={{ backgroundColor: variant?.colorHex || color }}
                     onClick={() => setSelectedColor(color)}
                     title={color}
@@ -1612,13 +1782,12 @@ function ProductDetailView() {
                   <button
                     key={size}
                     disabled={!hasStock}
-                    className={`flex h-10 min-w-[2.5rem] items-center justify-center rounded-lg border px-3 text-sm font-medium transition-all ${
-                      effectiveSize === size
-                        ? 'border-foreground bg-foreground text-background'
-                        : hasStock
-                          ? 'border-border hover:border-foreground/50'
-                          : 'border-muted bg-muted/50 text-muted-foreground line-through cursor-not-allowed'
-                    }`}
+                    className={`flex h-10 min-w-[2.5rem] items-center justify-center rounded-lg border px-3 text-sm font-medium transition-all ${effectiveSize === size
+                      ? 'border-foreground bg-foreground text-background'
+                      : hasStock
+                        ? 'border-border hover:border-foreground/50'
+                        : 'border-muted bg-muted/50 text-muted-foreground line-through cursor-not-allowed'
+                      }`}
                     onClick={() => setSelectedSize(size)}
                   >
                     {size}
@@ -1755,9 +1924,15 @@ function ProductDetailView() {
         </div>
       </div>
 
+      {/* Complete the Look */}
+      <CompleteTheLook productId={product.id} categoryId={product.categoryId} />
+
+      {/* Customers Also Viewed Carousel */}
+      <CustomersAlsoViewed productId={product.id} />
+
       {/* Recommendations */}
       {recommendations.length > 0 && (
-        <section className="mt-16">
+        <section className="mt-16 border-t pt-12">
           <div className="flex items-center gap-2 mb-8">
             <Sparkles className="h-5 w-5 text-amber-500" />
             <h2 className="text-xl sm:text-2xl font-bold">You Might Also Like</h2>
@@ -1788,8 +1963,8 @@ function CartDrawer() {
     Promise.all(
       store.cart.map((item) =>
         fetch(`/api/products/${item.productId}`)
-          .then((r) => r.json())
-          .then((p) => [item.productId, p] as [string, Product])
+          .then((r) => r.ok ? r.json() : null)
+          .then((p) => p && !p.error ? [item.productId, p] as [string, Product] : null)
           .catch(() => null)
       )
     ).then((results) => {
@@ -1949,6 +2124,7 @@ function CartDrawer() {
 function CheckoutView() {
   const store = useStore();
   const { toast } = useToast();
+  const { openSignIn } = useClerk();
   const [step, setStep] = useState(1);
   const [cartProducts, setCartProducts] = useState<Map<string, Product>>(new Map());
   const [couponCode, setCouponCode] = useState('');
@@ -1966,15 +2142,14 @@ function CheckoutView() {
     pincode: '',
   });
 
-  // Fetch cart product details
   const checkoutCartKey = store.cart.map((i) => i.productId).join(',');
   useEffect(() => {
     if (store.cart.length === 0) return;
     Promise.all(
       store.cart.map((item) =>
         fetch(`/api/products/${item.productId}`)
-          .then((r) => r.json())
-          .then((p) => [item.productId, p] as [string, Product])
+          .then((r) => r.ok ? r.json() : null)
+          .then((p) => p && !p.error ? [item.productId, p] as [string, Product] : null)
           .catch(() => null)
       )
     ).then((results) => {
@@ -1989,8 +2164,8 @@ function CheckoutView() {
     return sum + (product ? product.price * item.quantity : 0);
   }, 0);
   const shipping = subtotal >= 999 ? 0 : 99;
-  const tax = Math.round(subtotal * 0.18);
-  const total = subtotal + shipping + tax - couponDiscount;
+  const tax = 0;
+  const total = subtotal + shipping - couponDiscount;
 
   const handleApplyCoupon = async () => {
     setCouponError('');
@@ -2015,7 +2190,7 @@ function CheckoutView() {
 
   const handlePlaceOrder = async () => {
     if (!store.user) {
-      store.setAuthModalOpen(true);
+      openSignIn();
       return;
     }
     if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.address || !shippingInfo.city || !shippingInfo.state || !shippingInfo.pincode) {
@@ -2121,9 +2296,8 @@ function CheckoutView() {
         {['Shipping', 'Payment', 'Confirmation'].map((s, i) => (
           <React.Fragment key={s}>
             <div className={`flex items-center gap-2 ${step >= i + 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
-              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                step >= i + 1 ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
-              }`}>
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step >= i + 1 ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
+                }`}>
                 {step > i + 1 ? <Check className="h-3 w-3" /> : i + 1}
               </div>
               <span className="text-sm font-medium hidden sm:inline">{s}</span>
@@ -2268,10 +2442,7 @@ function CheckoutView() {
                 <span className="text-muted-foreground">Shipping</span>
                 <span className={shipping === 0 ? 'text-emerald-600' : ''}>{shipping === 0 ? 'FREE' : formatPrice(shipping)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax (GST 18%)</span>
-                <span>{formatPrice(tax)}</span>
-              </div>
+
               {couponDiscount > 0 && (
                 <div className="flex justify-between text-emerald-600">
                   <span>Coupon Discount</span>
@@ -2313,6 +2484,9 @@ function WishlistView() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <Button variant="ghost" className="mb-4" onClick={() => store.setView('shop')}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Shop
+      </Button>
       <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-8">
         Wishlist <span className="text-muted-foreground font-normal text-lg">({store.wishlist.length})</span>
       </h1>
@@ -2358,6 +2532,9 @@ function DashboardView() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <Button variant="ghost" className="mb-4" onClick={() => store.setView('shop')}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Shop
+      </Button>
       <div className="flex items-center gap-4 mb-8">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-xl font-bold text-background">
           {(store.user.name || 'U')[0].toUpperCase()}
@@ -2408,9 +2585,8 @@ function DashboardView() {
                   <div className="mt-4 flex items-center gap-1">
                     {['pending', 'confirmed', 'shipped', 'delivered'].map((s, i, arr) => (
                       <React.Fragment key={s}>
-                        <div className={`h-2 w-2 rounded-full ${
-                          arr.indexOf(order.status) >= i ? 'bg-amber-500' : 'bg-muted'
-                        }`} />
+                        <div className={`h-2 w-2 rounded-full ${arr.indexOf(order.status) >= i ? 'bg-amber-500' : 'bg-muted'
+                          }`} />
                         {i < arr.length - 1 && (
                           <div className={`h-0.5 flex-1 ${arr.indexOf(order.status) > i ? 'bg-amber-500' : 'bg-muted'}`} />
                         )}
@@ -2494,6 +2670,9 @@ function AdminPanel() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <Button variant="ghost" className="mb-4" onClick={() => store.setView('shop')}>
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to Shop
+      </Button>
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Admin Dashboard</h1>
@@ -2786,9 +2965,8 @@ function MobileBottomNav() {
         {navItems.map((item) => (
           <button
             key={item.label}
-            className={`flex flex-col items-center gap-1 px-3 py-1 transition-colors ${
-              store.currentView === item.view ? 'text-foreground' : 'text-muted-foreground'
-            }`}
+            className={`flex flex-col items-center gap-1 px-3 py-1 transition-colors ${store.currentView === item.view ? 'text-foreground' : 'text-muted-foreground'
+              }`}
             onClick={() => store.setView(item.view)}
           >
             <item.icon className="h-5 w-5" />
@@ -2870,6 +3048,8 @@ function useDarkMode() {
 export default function FashionEcommerce() {
   const { darkMode, toggleDarkMode } = useDarkMode();
   const [mounted, setMounted] = useState(false);
+  const { user: clerkUser, isLoaded } = useUser();
+  const store = useStore();
 
   // Use rAF to avoid sync setState in effect
   useEffect(() => {
@@ -2877,7 +3057,22 @@ export default function FashionEcommerce() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const store = useStore();
+  // Sync Clerk state with Zustand
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (clerkUser) {
+      store.setUser({
+        id: clerkUser.id,
+        email: clerkUser.primaryEmailAddress?.emailAddress || '',
+        name: clerkUser.fullName || clerkUser.username || 'User',
+        avatar: clerkUser.imageUrl || null,
+        phone: clerkUser.primaryPhoneNumber?.phoneNumber || null,
+        role: (clerkUser.publicMetadata?.role as string) || 'user',
+      });
+    } else {
+      store.setUser(null);
+    }
+  }, [clerkUser, isLoaded]);
 
   if (!mounted) {
     return (
@@ -2896,7 +3091,8 @@ export default function FashionEcommerce() {
         return (
           <>
             <HeroSection />
-            <FeaturedSection />
+            <TrendingSection />
+            <RecentlyViewedSection />
             <FeaturesBar />
             <NewArrivalsSection />
             <PromoBanner />
@@ -2905,7 +3101,7 @@ export default function FashionEcommerce() {
       case 'shop':
         return <ShopView />;
       case 'product':
-        return <ProductDetailView />;
+        return <ProductDetailView key={store.selectedProductId || 'product'} />;
       case 'wishlist':
         return <WishlistView />;
       case 'checkout':

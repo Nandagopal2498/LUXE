@@ -38,6 +38,8 @@ export interface Product {
   images: string; // JSON string
   categoryId: string;
   brandId: string;
+  fit?: string | null;
+  material?: string | null;
   rating: number;
   reviewCount: number;
   featured: boolean;

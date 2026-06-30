@@ -110,13 +110,13 @@ export const useStore = create<AppState>()(
           cart:
             quantity <= 0
               ? state.cart.filter(
-                  (item) => !(item.productId === productId && item.variantId === variantId)
-                )
+                (item) => !(item.productId === productId && item.variantId === variantId)
+              )
               : state.cart.map((item) =>
-                  item.productId === productId && item.variantId === variantId
-                    ? { ...item, quantity }
-                    : item
-                ),
+                item.productId === productId && item.variantId === variantId
+                  ? { ...item, quantity }
+                  : item
+              ),
         })),
       clearCart: () => set({ cart: [] }),
 
@@ -172,7 +172,6 @@ export const useStore = create<AppState>()(
         wishlist: state.wishlist,
         recentlyViewed: state.recentlyViewed,
         user: state.user,
-        filters: state.filters,
       }),
     }
   )
